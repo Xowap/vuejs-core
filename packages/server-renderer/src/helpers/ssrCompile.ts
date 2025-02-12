@@ -4,7 +4,7 @@ import {
   warn,
 } from 'vue'
 import { compile } from '@vue/compiler-ssr'
-import { NO, extend, generateCodeFrame, isFunction } from '@vue/shared'
+import { NO, extend, generateCodeFrame } from '@vue/shared'
 import type { CompilerError, CompilerOptions } from '@vue/compiler-core'
 import type { PushFn } from '../render'
 
@@ -16,8 +16,6 @@ type SSRRenderFunction = (
   push: PushFn,
   parentInstance: ComponentInternalInstance,
 ) => void
-
-const compileCache: Record<string, SSRRenderFunction> = Object.create(null)
 
 export function ssrCompile(
   template: string,
@@ -52,21 +50,6 @@ export function ssrCompile(
     finalCompilerOptions.isCustomElement || NO
   finalCompilerOptions.isNativeTag = finalCompilerOptions.isNativeTag || NO
 
-  const cacheKey = JSON.stringify(
-    {
-      template,
-      compilerOptions: finalCompilerOptions,
-    },
-    (key, value) => {
-      return isFunction(value) ? value.toString() : value
-    },
-  )
-
-  const cached = compileCache[cacheKey]
-  if (cached) {
-    return cached
-  }
-
   finalCompilerOptions.onError = (err: CompilerError) => {
     if (__DEV__) {
       const message = `[@vue/server-renderer] Template compilation error: ${err.message}`
@@ -89,5 +72,5 @@ export function ssrCompile(
     'vue/server-renderer': helpers,
   }
   const fakeRequire = (id: 'vue' | 'vue/server-renderer') => requireMap[id]
-  return (compileCache[cacheKey] = Function('require', code)(fakeRequire))
+  return Function('require', code)(fakeRequire)
 }
